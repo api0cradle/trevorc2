@@ -187,7 +187,26 @@ class TrevorPrompt(cmd.Cmd): #prompt class
         print(globalconfig.CIPHER)
         print(globalconfig.COOKIE_SESSIONID_STRING)
         print(globalconfig.NOTFOUND)
-
+    
+    def do_config(self, inp):
+        print("Clone URL: {}".format(globalconfig.URL))
+        print("User-Agent: {}".format(globalconfig.USER_AGENT))
+        print("Root Path: {}".format(globalconfig.ROOT_PATH_QUERY))
+        print("Site Path: {}".format(globalconfig.SITE_PATH_QUERY))
+        print("Query String: {}".format(globalconfig.QUERY_STRING))
+        print("Cookie SessionID String: {}".format(globalconfig.COOKIE_SESSIONID_STRING))
+        print("Cookie SessionID Length: {}".format(globalconfig.COOKIE_SESSIONID_LENGTH))
+        print("Stub: {}".format(globalconfig.STUB))
+        print("SSL: {}".format(globalconfig.SSL))
+        print("Cert File: {}".format(globalconfig.CERT_FILE))
+        print("Cipher: {}".format(globalconfig.CIPHER))
+        print("Not Found Message: {}".format(globalconfig.NOTFOUND))
+        print("Redirect: {}".format(globalconfig.REDIRECT))
+    
+    def help_config(self):
+        print("Description: Lists out the config settings from trevorc2_config.ini")    
+        print("Usage: config")
+    
 class Config: #Config parser
     def __init__(self, configpath):
         self._config = None
@@ -221,6 +240,10 @@ class Config: #Config parser
     @property
     def COOKIE_SESSIONID_STRING(self):
         return self._config['DEFAULT']['COOKIE_SESSIONID_STRING']
+    
+    @property
+    def COOKIE_SESSIONID_LENGTH(self):
+        return self._config['DEFAULT']['COOKIE_SESSIONID_LENGTH']
 
     @property
     def STUB(self):
